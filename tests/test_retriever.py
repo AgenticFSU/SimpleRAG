@@ -28,7 +28,7 @@ class TestRAGRetriever:
     def test_ingest_text_single(self, mock_vector_store, test_config):
         """Test ingesting a single text."""
         mock_store_instance = MagicMock()
-        mock_store_instance.add_documents.return_value = {"success": True, "documents_added": 2}
+        mock_store_instance.add_chunks_to_db.return_value = ["id1"]
         mock_vector_store.return_value = mock_store_instance
         
         retriever = RAGRetriever(test_config)
@@ -37,7 +37,7 @@ class TestRAGRetriever:
         result = retriever.ingest_text(text, ChunkingStrategy.RECURSIVE)
         
         assert result["success"]
-        assert result["chunks_added"] == 2
+        assert result["chunks_added"] == 1
         
     def test_ingest_empty_text(self, test_config):
         """Test ingesting empty text."""
@@ -45,14 +45,14 @@ class TestRAGRetriever:
         
         result = retriever.ingest_text("", ChunkingStrategy.RECURSIVE)
         
-        assert result["success"]
+        assert not result["success"]
         assert result["chunks_added"] == 0
         
     @patch('rag.core.retriever.ChromaVectorStore')
     def test_ingest_documents_multiple(self, mock_vector_store, test_config, sample_documents):
         """Test ingesting multiple documents."""
         mock_store_instance = MagicMock()
-        mock_store_instance.add_documents.return_value = {"success": True, "documents_added": 5}
+        mock_store_instance.add_chunks_to_db.return_value = ["id1", "id2", "id3", "id4", "id5"]
         mock_vector_store.return_value = mock_store_instance
         
         retriever = RAGRetriever(test_config)
@@ -73,9 +73,9 @@ class TestRAGRetriever:
     def test_retrieve_documents(self, mock_vector_store, test_config):
         """Test document retrieval."""
         mock_store_instance = MagicMock()
-        mock_store_instance.query.return_value = [
-            {"document": "Test doc 1", "similarity": 0.9, "metadata": {}},
-            {"document": "Test doc 2", "similarity": 0.8, "metadata": {}}
+        mock_store_instance.similarity_search.return_value = [
+            ("Test doc 1", 0.9, {"source": "test1"}),
+            ("Test doc 2", 0.8, {"source": "test2"})
         ]
         mock_vector_store.return_value = mock_store_instance
         
@@ -117,9 +117,10 @@ class TestRAGRetriever:
                          return_value={"document_count": 10}):
             stats = retriever.get_system_stats()
             
-            assert "chunker" in stats
+            assert "configuration" in stats
             assert "embedder" in stats
             assert "vector_store" in stats
+            assert "available_chunking_strategies" in stats
             assert stats["vector_store"]["document_count"] == 10
 
 

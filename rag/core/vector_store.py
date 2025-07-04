@@ -87,72 +87,20 @@ class ChromaVectorStore:
         
         return self._collection
     
-    def add_texts(
+    def add_chunks_to_db(
         self, 
         texts: List[str], 
         metadatas: Optional[List[Dict[str, Any]]] = None,
-        ids: Optional[List[str]] = None
+        ids: Optional[List[str]] = None,
+        batch_size: Optional[int] = None
     ) -> List[str]:
         """
-        Add texts to the vector store.
+        Add text chunks to the vector store with automatic batching.
         
         Args:
             texts: List of texts to add
             metadatas: Optional list of metadata dictionaries
             ids: Optional list of IDs for the texts
-            
-        Returns:
-            List of document IDs
-        """
-        if not texts:
-            return []
-        
-        # Generate IDs if not provided
-        if ids is None:
-            ids = [str(uuid.uuid4()) for _ in texts]
-        
-        # Generate default metadata if not provided
-        if metadatas is None:
-            metadatas = [{"text_length": len(text)} for text in texts]
-        
-        # Ensure we have the right number of items
-        assert len(texts) == len(ids), "Number of texts and IDs must match"
-        assert len(texts) == len(metadatas), "Number of texts and metadatas must match"
-        
-        try:
-            # Generate embeddings
-            embeddings = self.embedder.embed_texts(texts, show_progress_bar=True)
-            
-            # Convert numpy arrays to lists for ChromaDB
-            embedding_lists = [emb.tolist() for emb in embeddings]
-            
-            # Add to collection
-            self.collection.add(
-                embeddings=embedding_lists,
-                documents=texts,
-                metadatas=metadatas,
-                ids=ids
-            )
-            
-            logger.info(f"Added {len(texts)} documents to collection")
-            return ids
-            
-        except Exception as e:
-            logger.error(f"Failed to add texts to vector store: {e}")
-            raise
-    
-    def add_documents_batch(
-        self, 
-        texts: List[str], 
-        metadatas: Optional[List[Dict[str, Any]]] = None,
-        batch_size: Optional[int] = None
-    ) -> List[str]:
-        """
-        Add documents in batches for better performance with large datasets.
-        
-        Args:
-            texts: List of texts to add
-            metadatas: Optional list of metadata dictionaries
             batch_size: Batch size for processing
             
         Returns:
@@ -164,17 +112,55 @@ class ChromaVectorStore:
         batch_size = batch_size or self.config.BATCH_SIZE
         all_ids = []
         
-        # Process in batches
+        # Process in batches - loop automatically handles single batch if texts <= batch_size
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i + batch_size]
+            
+            # Handle batch metadata
             batch_metadatas = None
             if metadatas:
                 batch_metadatas = metadatas[i:i + batch_size]
+            else:
+                batch_metadatas = [{"text_length": len(text)} for text in batch_texts]
             
-            batch_ids = self.add_texts(batch_texts, batch_metadatas)
-            all_ids.extend(batch_ids)
+            # Handle batch IDs
+            batch_ids = None
+            if ids:
+                batch_ids = ids[i:i + batch_size]
+            else:
+                batch_ids = [str(uuid.uuid4()) for _ in batch_texts]
             
-            logger.info(f"Processed batch {i//batch_size + 1}/{(len(texts) + batch_size - 1)//batch_size}")
+            # Ensure we have the right number of items for this batch
+            assert len(batch_texts) == len(batch_ids), "Number of texts and IDs must match"
+            assert len(batch_texts) == len(batch_metadatas), "Number of texts and metadatas must match"
+            
+            try:
+                # Generate embeddings for this batch
+                embeddings = self.embedder.embed_texts(batch_texts, show_progress_bar=True)
+                
+                # Convert numpy arrays to lists for ChromaDB
+                embedding_lists = [emb.tolist() for emb in embeddings]
+                
+                # Add batch to collection
+                self.collection.add(
+                    embeddings=embedding_lists,
+                    documents=batch_texts,
+                    metadatas=batch_metadatas,
+                    ids=batch_ids
+                )
+                
+                all_ids.extend(batch_ids)
+                
+                # Log progress only if we have multiple batches
+                total_batches = (len(texts) + batch_size - 1) // batch_size
+                if total_batches > 1:
+                    logger.info(f"Processed batch {i//batch_size + 1}/{total_batches}")
+                else:
+                    logger.info(f"Added {len(batch_texts)} chunks to collection")
+                
+            except Exception as e:
+                logger.error(f"Failed to add batch to vector store: {e}")
+                raise
         
         return all_ids
     

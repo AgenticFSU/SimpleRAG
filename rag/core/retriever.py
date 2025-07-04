@@ -3,7 +3,7 @@ Main RAG retriever class that orchestrates chunking, embedding, and retrieval.
 """
 
 import logging
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
 from .config import ChunkingStrategy, RAGConfig, DEFAULT_CONFIG
@@ -63,7 +63,7 @@ class RAGRetriever:
     def ingest_text(
         self,
         text: str,
-        chunking_strategy: Union[ChunkingStrategy, str] = ChunkingStrategy.RECURSIVE,
+        chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -78,10 +78,6 @@ class RAGRetriever:
             Dictionary with ingestion results
         """
         try:
-            # Convert string to enum if needed
-            if isinstance(chunking_strategy, str):
-                chunking_strategy = ChunkingStrategy(chunking_strategy)
-            
             # Chunk the text
             chunks = self.chunker.chunk_text(text, chunking_strategy)
             
@@ -108,7 +104,7 @@ class RAGRetriever:
                 chunk_metadatas.append(chunk_metadata)
             
             # Add chunks to vector store
-            chunk_ids = self.vector_store.add_texts(chunks, chunk_metadatas)
+            chunk_ids = self.vector_store.add_chunks_to_db(chunks, chunk_metadatas)
             
             # Get chunk statistics
             chunk_stats = self.chunker.get_chunk_stats(chunks)
@@ -134,7 +130,7 @@ class RAGRetriever:
     def ingest_documents(
         self,
         documents: List[str],
-        chunking_strategy: Union[ChunkingStrategy, str] = ChunkingStrategy.RECURSIVE,
+        chunking_strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE,
         metadatas: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
@@ -148,21 +144,7 @@ class RAGRetriever:
         Returns:
             Dictionary with ingestion results
         """
-        if not documents:
-            return {
-                "success": False,
-                "message": "No documents provided",
-                "total_chunks_added": 0
-            }
-        
         try:
-            # Convert string to enum if needed
-            if isinstance(chunking_strategy, str):
-                try:
-                    chunking_strategy = ChunkingStrategy(chunking_strategy)
-                except ValueError:
-                    raise ValueError(f"Invalid chunking strategy: {chunking_strategy}")
-            
             all_chunks = []
             all_metadatas = []
             doc_chunk_counts = []
@@ -199,8 +181,8 @@ class RAGRetriever:
                     "total_chunks_added": 0
                 }
             
-            # Add all chunks to vector store in batches
-            chunk_ids = self.vector_store.add_documents_batch(all_chunks, all_metadatas)
+            # Add all chunks to vector store with automatic batching
+            chunk_ids = self.vector_store.add_chunks_to_db(all_chunks, all_metadatas)
             
             # Get overall statistics
             chunk_stats = self.chunker.get_chunk_stats(all_chunks)

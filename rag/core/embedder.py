@@ -6,7 +6,6 @@ import logging
 from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .config import RAGConfig, DEFAULT_CONFIG, EMBEDDING_MODELS
 
@@ -158,63 +157,7 @@ class TextEmbedder:
         except Exception as e:
             logger.error(f"Failed to embed texts: {e}")
             raise
-    
-    def embed_texts_parallel(
-        self, 
-        texts: List[str],
-        max_workers: Optional[int] = None
-    ) -> List[np.ndarray]:
-        """
-        Embed texts using parallel processing for very large datasets.
         
-        Args:
-            texts: List of texts to embed
-            max_workers: Maximum number of worker threads
-            
-        Returns:
-            List of numpy arrays containing embeddings
-        """
-        if not texts:
-            return []
-        
-        max_workers = max_workers or self.config.MAX_WORKERS
-        
-        # For small datasets, use regular embedding
-        if len(texts) < max_workers * 10:
-            return self.embed_texts(texts)
-        
-        # Split texts into chunks for parallel processing
-        chunk_size = max(1, len(texts) // max_workers)
-        text_chunks = [
-            texts[i:i + chunk_size] 
-            for i in range(0, len(texts), chunk_size)
-        ]
-        
-        embeddings = [None] * len(text_chunks)
-        
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all chunks
-            future_to_index = {
-                executor.submit(self.embed_texts, chunk): i
-                for i, chunk in enumerate(text_chunks)
-            }
-            
-            # Collect results
-            for future in as_completed(future_to_index):
-                chunk_index = future_to_index[future]
-                try:
-                    embeddings[chunk_index] = future.result()
-                except Exception as e:
-                    logger.error(f"Failed to embed chunk {chunk_index}: {e}")
-                    raise
-        
-        # Flatten results
-        flat_embeddings = []
-        for chunk_embeddings in embeddings:
-            flat_embeddings.extend(chunk_embeddings)
-        
-        return flat_embeddings
-    
     def similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
         """
         Calculate cosine similarity between two embeddings.

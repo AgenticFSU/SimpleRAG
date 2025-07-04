@@ -33,7 +33,7 @@ class RAGConfig:
     
     # Retrieval configuration
     DEFAULT_TOP_K: int = 5
-    SIMILARITY_THRESHOLD: float = 0.7
+    SIMILARITY_THRESHOLD: float = 0.5
     
     # Performance settings
     BATCH_SIZE: int = 100

@@ -225,43 +225,6 @@ class TestTextEmbedder:
         assert len(embeddings) == 3
         assert mock_model.encode.call_count == 2  # Two batches
         
-    @patch('rag.core.embedder.SentenceTransformer')
-    @patch('rag.core.embedder.ThreadPoolExecutor')
-    @pytest.mark.skip(reason="Skipping this test for now")
-    def test_embed_texts_parallel(self, mock_executor, mock_sentence_transformer, test_config):
-        """Test parallel text embedding."""
-        mock_model = MagicMock()
-        mock_sentence_transformer.return_value = mock_model
-        
-        # Mock ThreadPoolExecutor
-        mock_future = MagicMock()
-        mock_future.result.return_value = [np.array([0.1, 0.2])]
-        mock_executor.return_value.__enter__.return_value.submit.return_value = mock_future
-        
-        embedder = TextEmbedder(test_config)
-        
-        # Use enough texts to trigger parallel processing
-        texts = ["Text"] * 50
-        embeddings = embedder.embed_texts_parallel(texts, max_workers=2)
-        
-        assert isinstance(embeddings, list)
-        
-    @patch('rag.core.embedder.SentenceTransformer')
-    def test_embed_texts_parallel_small_dataset(self, mock_sentence_transformer, test_config):
-        """Test that small datasets skip parallel processing."""
-        mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.1, 0.2]])
-        mock_model.get_sentence_embedding_dimension.return_value = 2
-        mock_sentence_transformer.return_value = mock_model
-        
-        embedder = TextEmbedder(test_config)
-        
-        # Small dataset should use regular embed_texts
-        texts = ["Text 1", "Text 2"]
-        embeddings = embedder.embed_texts_parallel(texts, max_workers=4)
-        
-        assert len(embeddings) == 2
-        
     def test_similarity_calculation(self, test_config):
         """Test cosine similarity calculation."""
         embedder = TextEmbedder(test_config)
