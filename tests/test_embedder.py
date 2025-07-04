@@ -80,7 +80,7 @@ class TestTextEmbedder:
         
         # Should trigger model loading and return dimension
         dimension = embedder.embedding_dimension
-        assert dimension == 768
+        assert dimension == 384
         
     @patch('rag.core.embedder.SentenceTransformer')
     def test_embed_text_single(self, mock_sentence_transformer, test_config):
@@ -166,8 +166,11 @@ class TestTextEmbedder:
     def test_embed_texts_with_empty_strings(self, mock_sentence_transformer, test_config):
         """Test embedding texts with some empty strings."""
         mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.1, 0.2]])
-        mock_model.get_sentence_embedding_dimension.return_value = 2
+        # Use the actual embedding dimension from test_config
+        embedding_dim = 384
+        mock_embedding = np.random.rand(1, embedding_dim)  # Create valid embedding
+        mock_model.encode.return_value = mock_embedding
+        mock_model.get_sentence_embedding_dimension.return_value = embedding_dim
         mock_sentence_transformer.return_value = mock_model
         
         embedder = TextEmbedder(test_config)
@@ -177,12 +180,12 @@ class TestTextEmbedder:
         
         assert len(embeddings) == 3
         
-        # First and third should be zero vectors
-        assert np.allclose(embeddings[0], np.zeros(2))
-        assert np.allclose(embeddings[2], np.zeros(2))
+        # First and third should be zero vectors with correct dimension
+        assert np.allclose(embeddings[0], np.zeros(embedding_dim))
+        assert np.allclose(embeddings[2], np.zeros(embedding_dim))
         
         # Second should be the actual embedding
-        assert np.array_equal(embeddings[1], np.array([0.1, 0.2]))
+        assert np.array_equal(embeddings[1], mock_embedding[0])
         
         # Model should only be called with non-empty text
         mock_model.encode.assert_called_once()

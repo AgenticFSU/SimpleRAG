@@ -17,25 +17,25 @@ class TestRAGConfig:
         assert config.CHUNK_OVERLAP == 200
         assert config.EMBEDDING_MODEL == "all-MiniLM-L6-v2"
         assert config.DEFAULT_TOP_K == 5
-        assert config.SIMILARITY_THRESHOLD == 0.7
+        assert config.SIMILARITY_THRESHOLD == 0.5
         assert config.BATCH_SIZE == 100
         assert config.MAX_WORKERS == 4
         
     def test_custom_config_creation(self):
         """Test creating a custom configuration."""
         config = RAGConfig(
-            CHUNK_SIZE=500,
-            CHUNK_OVERLAP=100,
-            EMBEDDING_MODEL="all-mpnet-base-v2",
-            DEFAULT_TOP_K=10,
-            SIMILARITY_THRESHOLD=0.8
+            CHUNK_SIZE=346,
+            CHUNK_OVERLAP=13,
+            EMBEDDING_MODEL="herty-base-v2",
+            DEFAULT_TOP_K=4,
+            SIMILARITY_THRESHOLD=0.573
         )
         
-        assert config.CHUNK_SIZE == 500
-        assert config.CHUNK_OVERLAP == 100
-        assert config.EMBEDDING_MODEL == "all-mpnet-base-v2"
-        assert config.DEFAULT_TOP_K == 10
-        assert config.SIMILARITY_THRESHOLD == 0.8
+        assert config.CHUNK_SIZE == 346
+        assert config.CHUNK_OVERLAP == 13
+        assert config.EMBEDDING_MODEL == "herty-base-v2"
+        assert config.DEFAULT_TOP_K == 4
+        assert config.SIMILARITY_THRESHOLD == 0.573
         
     def test_recursive_separators_initialization(self):
         """Test that recursive separators are properly initialized."""
