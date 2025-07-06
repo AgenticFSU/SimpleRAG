@@ -3,7 +3,7 @@ Tests for RAG configuration module.
 """
 
 import pytest
-from rag.core.config import RAGConfig, ChunkingStrategy, DEFAULT_CONFIG, EMBEDDING_MODELS
+from rag.core.config import RAGConfig, ChunkingStrategy, DEFAULT_CONFIG
 
 
 class TestRAGConfig:
@@ -86,48 +86,6 @@ class TestChunkingStrategy:
         assert ChunkingStrategy.RECURSIVE in strategies
         assert ChunkingStrategy.CHARACTER in strategies
         assert len(strategies) == 2  # Only 2 strategies currently
-
-
-class TestEmbeddingModels:
-    """Test the embedding models configuration."""
-    
-    def test_embedding_models_structure(self):
-        """Test that EMBEDDING_MODELS has correct structure."""
-        assert isinstance(EMBEDDING_MODELS, dict)
-        assert len(EMBEDDING_MODELS) > 0
-        
-        for model_key, model_info in EMBEDDING_MODELS.items():
-            assert isinstance(model_key, str)
-            assert isinstance(model_info, dict)
-            assert "name" in model_info
-            assert "dimension" in model_info
-            assert "description" in model_info
-            
-    def test_default_embedding_model_exists(self):
-        """Test that the default embedding model exists in EMBEDDING_MODELS."""
-        default_model = DEFAULT_CONFIG.EMBEDDING_MODEL
-        assert default_model in EMBEDDING_MODELS
-        
-    def test_embedding_model_properties(self):
-        """Test properties of specific embedding models."""
-        # Test all-MiniLM-L6-v2
-        model_info = EMBEDDING_MODELS["all-MiniLM-L6-v2"]
-        assert model_info["dimension"] == 384
-        assert "sentence-transformers/all-MiniLM-L6-v2" in model_info["name"]
-        assert "Fast" in model_info["description"]
-        
-        # Test all-mpnet-base-v2
-        model_info = EMBEDDING_MODELS["all-mpnet-base-v2"]
-        assert model_info["dimension"] == 768
-        assert "sentence-transformers/all-mpnet-base-v2" in model_info["name"]
-        
-    def test_model_names_are_valid(self):
-        """Test that all model names follow expected pattern."""
-        for model_key, model_info in EMBEDDING_MODELS.items():
-            model_name = model_info["name"]
-            assert model_name.startswith("sentence-transformers/")
-            assert model_info["dimension"] > 0
-            assert len(model_info["description"]) > 0
 
 
 class TestConfigValidation:

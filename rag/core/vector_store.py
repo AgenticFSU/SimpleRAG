@@ -6,7 +6,6 @@ import os
 import logging
 from typing import List, Optional, Dict, Tuple, Any
 import uuid
-import numpy as np
 import chromadb
 from chromadb.config import Settings
 
@@ -68,22 +67,14 @@ class ChromaVectorStore:
         """Get or create the collection."""
         if self._collection is None:
             try:
-                # Try to get existing collection
-                self._collection = self.client.get_collection(
-                    name=self.collection_name
+                self._collection = self.client.get_or_create_collection(
+                    name=self.collection_name,
+                    metadata={"hnsw:space": "cosine"}  # Use cosine similarity
                 )
-                logger.info(f"Retrieved existing collection: {self.collection_name}")
-            except Exception:
-                # Collection doesn't exist, create it
-                try:
-                    self._collection = self.client.create_collection(
-                        name=self.collection_name,
-                        metadata={"hnsw:space": "cosine"}  # Use cosine similarity
-                    )
-                    logger.info(f"Created new collection: {self.collection_name}")
-                except Exception as e:
-                    logger.error(f"Failed to create collection: {e}")
-                    raise
+                logger.info(f"Got/Created collection: {self.collection_name}")
+            except Exception as e:
+                logger.error(f"Failed to get or create collection: {e}")
+                raise
         
         return self._collection
     
@@ -168,7 +159,8 @@ class ChromaVectorStore:
         self, 
         query: str, 
         k: int = None,
-        filter_dict: Optional[Dict[str, Any]] = None
+        filter_dict: Optional[Dict[str, Any]] = None, 
+        embedding: Optional[bool] = False
     ) -> List[Tuple[str, float, Dict[str, Any]]]:
         """
         Search for similar documents.
@@ -185,11 +177,12 @@ class ChromaVectorStore:
         
         try:
             # Generate query embedding
-            query_embedding = self.embedder.embed_text(query)
+            if not embedding:
+                query = self.embedder.embed_text(query)
             
             # Search in ChromaDB
             results = self.collection.query(
-                query_embeddings=[query_embedding.tolist()],
+                query_embeddings=[query.tolist()],
                 n_results=k,
                 where=filter_dict
             )
@@ -215,52 +208,7 @@ class ChromaVectorStore:
         except Exception as e:
             logger.error(f"Failed to perform similarity search: {e}")
             raise
-    
-    def similarity_search_with_embeddings(
-        self, 
-        query_embedding: np.ndarray, 
-        k: int = None,
-        filter_dict: Optional[Dict[str, Any]] = None
-    ) -> List[Tuple[str, float, Dict[str, Any]]]:
-        """
-        Search for similar documents using pre-computed embedding.
-        
-        Args:
-            query_embedding: Query embedding as numpy array
-            k: Number of results to return
-            filter_dict: Optional metadata filter
-            
-        Returns:
-            List of tuples containing (document, similarity_score, metadata)
-        """
-        k = k or self.config.DEFAULT_TOP_K
-        
-        try:
-            # Search in ChromaDB
-            results = self.collection.query(
-                query_embeddings=[query_embedding.tolist()],
-                n_results=k,
-                where=filter_dict
-            )
-            
-            # Format results (same as similarity_search)
-            documents = results['documents'][0] if results['documents'] else []
-            distances = results['distances'][0] if results['distances'] else []
-            metadatas = results['metadatas'][0] if results['metadatas'] else []
-            
-            similarities = [1 - dist for dist in distances]
-            
-            search_results = []
-            for doc, sim, meta in zip(documents, similarities, metadatas):
-                if sim >= self.config.SIMILARITY_THRESHOLD:
-                    search_results.append((doc, sim, meta or {}))
-            
-            return search_results
-            
-        except Exception as e:
-            logger.error(f"Failed to perform similarity search with embeddings: {e}")
-            raise
-    
+
     def get_collection_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the collection.

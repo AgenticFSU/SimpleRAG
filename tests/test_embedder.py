@@ -12,63 +12,40 @@ from rag.core.config import RAGConfig
 class TestTextEmbedder:
     """Test the TextEmbedder class."""
     
-    def test_embedder_creation_default(self):
+    @patch('rag.core.embedder.SentenceTransformer')
+    def test_embedder_creation_default(self, mock_sentence_transformer):
         """Test creating embedder with default config."""
+        mock_model = MagicMock()
+        mock_model.get_sentence_embedding_dimension.return_value = 384
+        mock_sentence_transformer.return_value = mock_model
+        
         embedder = TextEmbedder()
         assert embedder.config is not None
         assert embedder.model_name == "all-MiniLM-L6-v2"
-        assert embedder._model is None  # Lazy loading
-        
-    def test_embedder_creation_custom_config(self, test_config):
-        """Test creating embedder with custom config."""
-        embedder = TextEmbedder(test_config)
-        assert embedder.config == test_config
-        assert embedder.model_name == test_config.EMBEDDING_MODEL
-        
-    def test_embedder_creation_custom_model(self, test_config):
-        """Test creating embedder with custom model override."""
-        custom_model = "all-mpnet-base-v2"
-        embedder = TextEmbedder(test_config, model_name=custom_model)
-        assert embedder.model_name == custom_model
-        
-    def test_embedder_model_info_validation(self):
-        """Test model info structure validation."""
-        embedder = TextEmbedder()
-        model_info = embedder._model_info
-        
-        assert "name" in model_info
-        assert "dimension" in model_info
-        assert model_info["name"].startswith("sentence-transformers/")
-        
-    def test_embedder_unknown_model_warning(self, test_config):
-        """Test warning for unknown model."""
-        unknown_model = "unknown-model"
-        embedder = TextEmbedder(test_config, model_name=unknown_model)
-        
-        # Should still work but with warning logged
-        assert embedder.model_name == unknown_model
-        assert embedder._model_info["name"] == f"sentence-transformers/{unknown_model}"
+        assert embedder.model is mock_model  # Model is loaded immediately
         
     @patch('rag.core.embedder.SentenceTransformer')
-    def test_model_lazy_loading(self, mock_sentence_transformer, test_config):
-        """Test that model is loaded lazily."""
+    def test_embedder_creation_custom_config(self, mock_sentence_transformer, test_config):
+        """Test creating embedder with custom config."""
         mock_model = MagicMock()
         mock_model.get_sentence_embedding_dimension.return_value = 384
         mock_sentence_transformer.return_value = mock_model
         
         embedder = TextEmbedder(test_config)
-        assert embedder._model is None
+        assert embedder.config == test_config
+        assert embedder.model_name == test_config.EMBEDDING_MODEL
         
-        # Access model property to trigger loading
-        model = embedder.model
-        assert model is mock_model
-        assert embedder._model is mock_model
+    @patch('rag.core.embedder.SentenceTransformer')
+    def test_embedder_creation_custom_model(self, mock_sentence_transformer, test_config):
+        """Test creating embedder with custom model override."""
+        mock_model = MagicMock()
+        mock_model.get_sentence_embedding_dimension.return_value = 768
+        mock_sentence_transformer.return_value = mock_model
         
-        # Second access should return cached model
-        model2 = embedder.model
-        assert model2 is mock_model
-        mock_sentence_transformer.assert_called_once()
-        
+        custom_model = "all-mpnet-base-v2"
+        embedder = TextEmbedder(test_config, model_name=custom_model)
+        assert embedder.model_name == custom_model
+
     @patch('rag.core.embedder.SentenceTransformer')
     def test_embedding_dimension_property(self, mock_sentence_transformer, test_config):
         """Test embedding dimension property."""
@@ -78,9 +55,9 @@ class TestTextEmbedder:
         
         embedder = TextEmbedder(test_config)
         
-        # Should trigger model loading and return dimension
+        # Should return the dimension from the model
         dimension = embedder.embedding_dimension
-        assert dimension == 384
+        assert dimension == 768
         
     @patch('rag.core.embedder.SentenceTransformer')
     def test_embed_text_single(self, mock_sentence_transformer, test_config):
@@ -154,6 +131,7 @@ class TestTextEmbedder:
     def test_embed_texts_empty_list(self, mock_sentence_transformer, test_config):
         """Test embedding empty text list."""
         mock_model = MagicMock()
+        mock_model.get_sentence_embedding_dimension.return_value = 384
         mock_sentence_transformer.return_value = mock_model
         
         embedder = TextEmbedder(test_config)
@@ -228,40 +206,6 @@ class TestTextEmbedder:
         assert len(embeddings) == 3
         assert mock_model.encode.call_count == 2  # Two batches
         
-    def test_similarity_calculation(self, test_config):
-        """Test cosine similarity calculation."""
-        embedder = TextEmbedder(test_config)
-        
-        # Test vectors
-        vec1 = np.array([1, 0, 0])
-        vec2 = np.array([0, 1, 0])
-        vec3 = np.array([1, 0, 0])
-        
-        # Orthogonal vectors should have similarity 0
-        sim1 = embedder.similarity(vec1, vec2)
-        assert abs(sim1 - 0.0) < 1e-10
-        
-        # Identical vectors should have similarity 1
-        sim2 = embedder.similarity(vec1, vec3)
-        assert abs(sim2 - 1.0) < 1e-10
-        
-    def test_similarity_zero_vectors(self, test_config):
-        """Test similarity with zero vectors."""
-        embedder = TextEmbedder(test_config)
-        
-        zero_vec = np.array([0, 0, 0])
-        normal_vec = np.array([1, 0, 0])
-        
-        # Zero vector should have similarity 0 with any vector
-        sim = embedder.similarity(zero_vec, normal_vec)
-        assert sim == 0.0
-        
-        sim = embedder.similarity(normal_vec, zero_vec)
-        assert sim == 0.0
-        
-        sim = embedder.similarity(zero_vec, zero_vec)
-        assert sim == 0.0
-        
     @patch('rag.core.embedder.SentenceTransformer')
     def test_get_model_info(self, mock_sentence_transformer, test_config):
         """Test getting model information."""
@@ -274,28 +218,18 @@ class TestTextEmbedder:
         info = embedder.get_model_info()
         
         assert "model_name" in info
-        assert "model_path" in info
         assert "embedding_dimension" in info
-        assert "description" in info
-        assert "loaded" in info
         
         assert info["model_name"] == test_config.EMBEDDING_MODEL
-        assert not info["loaded"]  # Model not loaded yet
-        
-        # Load model and check again
-        _ = embedder.model
-        info2 = embedder.get_model_info()
-        assert info2["loaded"]
-        
+        assert info["embedding_dimension"] == 384
+
     @patch('rag.core.embedder.SentenceTransformer')
     def test_model_loading_failure(self, mock_sentence_transformer, test_config):
         """Test handling of model loading failure."""
         mock_sentence_transformer.side_effect = Exception("Model loading failed")
         
-        embedder = TextEmbedder(test_config)
-        
         with pytest.raises(Exception, match="Model loading failed"):
-            _ = embedder.model
+            TextEmbedder(test_config)  # Exception happens in __init__ now
             
     @patch('rag.core.embedder.SentenceTransformer')
     def test_embedding_failure(self, mock_sentence_transformer, test_config):
@@ -340,27 +274,3 @@ class TestEmbeddingIntegration:
         for embedding in embeddings:
             assert isinstance(embedding, np.ndarray)
             assert embedding.shape == (embedder.embedding_dimension,)
-            
-    @pytest.mark.integration
-    def test_real_similarity_calculation(self, test_config):
-        """Test real similarity calculation with actual embeddings."""
-        embedder = TextEmbedder(test_config)
-        
-        # Similar texts
-        text1 = "The cat is sleeping."
-        text2 = "A cat is taking a nap."
-        
-        # Different text
-        text3 = "Machine learning algorithms are powerful."
-        
-        emb1 = embedder.embed_text(text1)
-        emb2 = embedder.embed_text(text2)
-        emb3 = embedder.embed_text(text3)
-        
-        # Similar texts should have higher similarity
-        sim_similar = embedder.similarity(emb1, emb2)
-        sim_different = embedder.similarity(emb1, emb3)
-        
-        assert sim_similar > sim_different
-        assert 0 <= sim_similar <= 1
-        assert -1 <= sim_different <= 1 

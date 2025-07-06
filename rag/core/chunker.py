@@ -49,7 +49,6 @@ class RecursiveChunker(BaseChunker):
             chunks = self.splitter.split_text(text)
             # Filter out empty or whitespace-only chunks
             result = [chunk.strip() for chunk in chunks if chunk.strip()]
-            logger.info(f"Chunked text into {len(result)} chunks using RecursiveChunker.")
             return result
         except Exception as e:
             logger.error(f"Failed to chunk text in RecursiveChunker: {e}")
@@ -77,7 +76,6 @@ class CharacterChunker(BaseChunker):
         try:
             chunks = self.splitter.split_text(text)
             result = [chunk.strip() for chunk in chunks if chunk.strip()]
-            logger.info(f"Chunked text into {len(result)} chunks using CharacterChunker.")
             return result
         except Exception as e:
             logger.error(f"Failed to chunk text in CharacterChunker: {e}")
@@ -116,18 +114,10 @@ class TextChunker:
             
         Returns:
             List of text chunks
-        """
-        if not isinstance(strategy, ChunkingStrategy):
-            # Try to convert string to enum
-            try:
-                strategy = ChunkingStrategy(strategy)
-            except ValueError:
-                raise ValueError(f"Invalid chunking strategy: {strategy}")
-        
+        """        
         chunker = self._get_chunker(strategy)
         try:
             result = chunker.chunk_text(text)
-            logger.info(f"Chunked text using strategy '{strategy.name}': {len(result)} chunks.")
             return result
         except Exception as e:
             logger.error(f"Failed to chunk text using strategy '{strategy}': {e}")
@@ -155,7 +145,7 @@ class TextChunker:
                 all_chunks.extend(chunks)
             except Exception as e:
                 logger.error(f"Failed to chunk a document: {e}")
-        logger.info(f"Chunked {len(documents)} documents into {len(all_chunks)} chunks.")
+        logger.info(f"Chunked {len(documents)} documents into {len(all_chunks)} chunks with {strategy.name} strategy.")
         return all_chunks
     
     def get_chunk_stats(self, chunks: List[str]) -> dict:

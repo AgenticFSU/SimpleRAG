@@ -25,7 +25,7 @@ def demo_basic_usage():
     # Create a RAG retriever
     rag = create_rag_retriever(
         collection_name="demo_collection",
-        embedding_model="all-mpnet-base-v2",
+        embedding_model="all-MiniLM-L6-v2",
         chunk_size=500,
         chunk_overlap=100,
         top_k=3

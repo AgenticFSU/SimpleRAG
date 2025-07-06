@@ -24,8 +24,9 @@ class RAGConfig:
     RECURSIVE_SEPARATORS: list = None
     
     # Embedding model configuration
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"  # Fast and reliable sentence-transformers model
-    EMBEDDING_DIMENSION: int = 384  # Dimension for all-MiniLM-L6-v2
+    # Original models: Sentence Transformers Hugging Face organization https://huggingface.co/models?library=sentence-transformers&author=sentence-transformers
+    # Community models: All Sentence Transformer models on Hugging Face https://huggingface.co/models?library=sentence-transformers
+    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     
     # ChromaDB configuration
     CHROMA_PERSIST_DIRECTORY: str = "../data/chroma_db"
@@ -59,23 +60,3 @@ class RAGConfig:
 
 # Default configuration instance
 DEFAULT_CONFIG = RAGConfig()
-
-
-# Model configurations for different embedding models
-EMBEDDING_MODELS = {
-    "all-MiniLM-L6-v2": {
-        "name": "sentence-transformers/all-MiniLM-L6-v2",
-        "dimension": 384,
-        "description": "Fast and efficient model for general purpose"
-    },
-    "all-mpnet-base-v2": {
-        "name": "sentence-transformers/all-mpnet-base-v2", 
-        "dimension": 768,
-        "description": "Higher quality embeddings, slower"
-    },
-    "distilbert-base-nli-mean-tokens": {
-        "name": "sentence-transformers/distilbert-base-nli-mean-tokens",
-        "dimension": 768,
-        "description": "Good balance of speed and quality"
-    }
-} 

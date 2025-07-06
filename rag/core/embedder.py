@@ -7,7 +7,7 @@ from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from .config import RAGConfig, DEFAULT_CONFIG, EMBEDDING_MODELS
+from .config import RAGConfig, DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -25,49 +25,9 @@ class TextEmbedder:
         """
         self.config = config or DEFAULT_CONFIG
         self.model_name = model_name or self.config.EMBEDDING_MODEL
+        self.model = SentenceTransformer(self.model_name)
+        self.embedding_dimension = self.model.get_sentence_embedding_dimension()
         
-        # Validate model name
-        if self.model_name not in EMBEDDING_MODELS:
-            available_models = list(EMBEDDING_MODELS.keys())
-            logger.warning(
-                f"Model '{self.model_name}' not in predefined models. "
-                f"Available models: {available_models}. "
-                f"Will attempt to load anyway."
-            )
-        
-        self._model = None
-        self._model_info = EMBEDDING_MODELS.get(
-            self.model_name, 
-            {"name": f"sentence-transformers/{self.model_name}", "dimension": None}
-        )
-    
-    @property
-    def model(self) -> SentenceTransformer:
-        """Lazy loading of the embedding model."""
-        if self._model is None:
-            try:
-                model_path = self._model_info["name"]
-                self._model = SentenceTransformer(model_path)
-                logger.info(f"Loaded embedding model: {model_path}")
-                
-                # Update dimension if not set
-                if self._model_info["dimension"] is None:
-                    self._model_info["dimension"] = self._model.get_sentence_embedding_dimension()
-                    
-            except Exception as e:
-                logger.error(f"Failed to load embedding model '{self.model_name}': {e}")
-                raise
-        
-        return self._model
-    
-    @property
-    def embedding_dimension(self) -> int:
-        """Get the embedding dimension."""
-        if self._model_info["dimension"] is None:
-            # Force model loading to get dimension
-            _ = self.model
-        return self._model_info["dimension"]
-    
     def embed_text(self, text: str) -> np.ndarray:
         """
         Embed a single text string.
@@ -157,28 +117,6 @@ class TextEmbedder:
         except Exception as e:
             logger.error(f"Failed to embed texts: {e}")
             raise
-        
-    def similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
-        """
-        Calculate cosine similarity between two embeddings.
-        
-        Args:
-            embedding1: First embedding
-            embedding2: Second embedding
-            
-        Returns:
-            Cosine similarity score (-1 to 1)
-        """
-        # Normalize embeddings
-        norm1 = np.linalg.norm(embedding1)
-        norm2 = np.linalg.norm(embedding2)
-        
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-        
-        # Calculate cosine similarity
-        similarity = np.dot(embedding1, embedding2) / (norm1 * norm2)
-        return float(similarity)
     
     def get_model_info(self) -> dict:
         """
@@ -189,8 +127,5 @@ class TextEmbedder:
         """
         return {
             "model_name": self.model_name,
-            "model_path": self._model_info["name"],
-            "embedding_dimension": self.embedding_dimension,
-            "description": self._model_info.get("description", "No description available"),
-            "loaded": self._model is not None
+            "embedding_dimension": self.embedding_dimension
         } 
