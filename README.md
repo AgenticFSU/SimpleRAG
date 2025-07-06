@@ -102,11 +102,14 @@ config = RAGConfig(
 )
 ```
 
-### Available Embedding Models
+### Embedding Models
 
-- `all-MiniLM-L6-v2`: Fast and efficient (384 dimensions)
-- `all-mpnet-base-v2`: Higher quality (768 dimensions)
-- `distilbert-base-nli-mean-tokens`: Good balance (768 dimensions)
+The system supports any SentenceTransformer model from Hugging Face. Model dimensions are automatically detected using the SentenceTransformer API. Some popular options:
+
+- `all-MiniLM-L6-v2`: Fast and efficient, good for most use cases
+- `all-mpnet-base-v2`: Higher quality embeddings, slower but more accurate
+- `distilbert-base-nli-mean-tokens`: Good balance of speed and quality
+- Any other SentenceTransformer model: Simply use the model name directly
 
 ## API Reference
 
@@ -342,7 +345,7 @@ def enhance_with_rag(user_query):
 The system follows PEP8 standards and uses type hints throughout. To extend functionality:
 
 1. Add new chunking strategies by extending `BaseChunker`
-2. Add new embedding models in `config.py`
+2. Use any SentenceTransformer model directly - no configuration needed
 3. Extend metadata filtering in `ChromaVectorStore`
 4. Add new CLI commands in `cli.py`
 

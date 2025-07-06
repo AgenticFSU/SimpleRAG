@@ -344,8 +344,7 @@ class RAGRetriever:
             True if successful, False otherwise
         """
         return self.vector_store.reset_collection()
-
-
+    
 # Convenience function for quick RAG setup
 def create_rag_retriever(
     collection_name: str = "default_rag",
